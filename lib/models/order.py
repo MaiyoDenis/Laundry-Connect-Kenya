@@ -4,12 +4,16 @@ from datetime import datetime, date
 
 from lib.models.base import Base
 
+# Import ServiceClass here to avoid circular import issues
+from lib.models.service_class import ServiceClass
+
 class Order(Base):
     __tablename__ = 'orders'
     
     id = Column(Integer, primary_key=True)
     customer_id = Column(Integer, ForeignKey('customers.id'), nullable=False)
     service_id = Column(Integer, ForeignKey('services.id'), nullable=False)
+    service_class_id = Column(Integer, ForeignKey('service_classes.id'), nullable=True)
     weight = Column(Float, nullable=False)
     total_price = Column(Float, nullable=False)
     status = Column(String, default='placed')
@@ -20,7 +24,9 @@ class Order(Base):
     
     customer = relationship("Customer", back_populates="orders")
     service = relationship("Service", back_populates="orders")
+    service_class = relationship("ServiceClass", back_populates="orders")
     status_history = relationship("OrderStatusHistory", back_populates="order", cascade="all, delete-orphan")
+    comments = relationship("OrderComment", back_populates="order", cascade="all, delete-orphan")
     
     @property
     def weight(self):
@@ -45,19 +51,29 @@ class Order(Base):
         self._pickup_date = value
     
     @classmethod
-    def create(cls, session, customer_id, service_id, weight, pickup_date, pickup_time, special_instructions=None):
+    def create(cls, session, customer_id, service_id, weight, pickup_date, pickup_time, special_instructions=None, service_class_id=None):
         from lib.models.service import Service
         from lib.models.order_status_history import OrderStatusHistory
+        from lib.models.service_class import ServiceClass
         
         service = session.query(Service).filter_by(id=service_id).first()
         if not service:
             raise ValueError("Invalid service ID")
         
-        total_price = service.price_per_unit * weight
+        price_per_unit = service.price_per_unit
+        
+        if service_class_id:
+            service_class = session.query(ServiceClass).filter_by(id=service_class_id).first()
+            if not service_class:
+                raise ValueError("Invalid service class ID")
+            price_per_unit *= service_class.price_multiplier
+        
+        total_price = price_per_unit * weight
         
         order = cls(
             customer_id=customer_id,
             service_id=service_id,
+            service_class_id=service_class_id,
             weight=weight,
             total_price=total_price,
             pickup_date=pickup_date,

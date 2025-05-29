@@ -8,6 +8,8 @@ from .service import Service
 from .order import Order
 from .location import Location
 from .order_status_history import OrderStatusHistory
+from .service_class import ServiceClass
+from .user import User
 
 DATABASE_URL = "sqlite:///laundryconnect.db"
 
@@ -25,6 +27,8 @@ __all__ = [
     "Location",
     "OrderStatusHistory",
     "create_tables",
+    "ServiceClass",
+    "User",
 ]
 
 # Create all tables
