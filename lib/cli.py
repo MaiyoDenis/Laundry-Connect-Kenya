@@ -50,6 +50,7 @@ def display_header():
 
 from lib.models.user import User
 from lib.models.customer import Customer
+from datetime import datetime
 
 current_user = None
 
@@ -57,9 +58,9 @@ def register():
     print("\n===== User Registration =====")
     username = input("Enter username: ")
     password = input("Enter password: ")
-    role = input("Enter role (customer/manager): ").strip().lower()
-    is_customer = role == "customer"
-    is_manager = role == "manager"
+    # Remove role input, all users are admin
+    is_customer = False
+    is_manager = True
     
     from lib.db import get_session
     session = get_session()
@@ -70,12 +71,12 @@ def register():
     
     user = User.create(session, username, password, is_customer=is_customer, is_manager=is_manager)
     
-    if is_customer:
-        name = input("Enter your full name: ")
-        phone = input("Enter your phone number: ")
-        email = input("Enter your email (optional): ")
-        address = input("Enter your address (optional): ")
-        Customer.create(session, name, phone, email, address, user_id=user.id)
+    # For admin user, create a Customer record with example details
+    name = input("Enter your full name: ")
+    phone = input("Enter your phone number: ")
+    email = input("Enter your email (optional): ")
+    address = input("Enter your address (optional): ")
+    Customer.create(session, name, phone, email, address, user_id=user.id)
     
     print("Registration successful! You can now log in.")
 
@@ -92,6 +93,10 @@ def login():
     if not user or not user.check_password(password):
         print("Invalid username or password.")
         return
+    
+    # Force user to be admin for this simplified model
+    user.is_customer = False
+    user.is_manager = True
     
     current_user = user
     print(f"Welcome, {user.username}!")
@@ -334,6 +339,7 @@ def order_menu():
 
 def tick_order_status_stage():
     from lib.db import get_session
+    from lib.models import Order
     session = get_session()
     
     order_id = input("Enter Order ID to update status: ")

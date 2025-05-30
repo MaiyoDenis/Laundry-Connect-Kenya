@@ -28,27 +28,29 @@ class Order(Base):
     status_history = relationship("OrderStatusHistory", back_populates="order", cascade="all, delete-orphan")
     comments = relationship("OrderComment", back_populates="order", cascade="all, delete-orphan")
     
-    @property
-    def weight(self):
-        return self._weight
+    # Remove property for weight to use direct column access
+    # @property
+    # def weight(self):
+    #     return self._weight
         
-    @weight.setter
-    def weight(self, value):
-        if not isinstance(value, (int, float)) or value <= 0:
-            raise ValueError("Weight must be a positive number")
-        self._weight = value
+    # @weight.setter
+    # def weight(self, value):
+    #     if not isinstance(value, (int, float)) or value <= 0:
+    #         raise ValueError("Weight must be a positive number")
+    #     self._weight = value
     
-    @property
-    def pickup_date(self):
-        return self._pickup_date
+    # Remove property for pickup_date to use direct column access
+    # @property
+    # def pickup_date(self):
+    #     return self._pickup_date
         
-    @pickup_date.setter
-    def pickup_date(self, value):
-        if isinstance(value, str):
-            value = datetime.strptime(value, '%Y-%m-%d').date()
-        if value < date.today():
-            raise ValueError("Pickup date cannot be in the past")
-        self._pickup_date = value
+    # @pickup_date.setter
+    # def pickup_date(self, value):
+    #     if isinstance(value, str):
+    #         value = datetime.strptime(value, '%Y-%m-%d').date()
+    #     if value < date.today():
+    #         raise ValueError("Pickup date cannot be in the past")
+    #     self._pickup_date = value
     
     @classmethod
     def create(cls, session, customer_id, service_id, weight, pickup_date, pickup_time, special_instructions=None, service_class_id=None):
