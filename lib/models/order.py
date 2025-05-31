@@ -139,3 +139,7 @@ class Order(Base):
     
     def __repr__(self):
         return f"<Order id={self.id} customer_id={self.customer_id} status={self.status}>"
+
+    @classmethod
+    def find_by_customer(cls, session, customer_id):
+        return session.query(cls).filter_by(customer_id=customer_id).all()
