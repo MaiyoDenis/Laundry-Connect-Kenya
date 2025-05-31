@@ -53,48 +53,26 @@ class Order(Base):
     #     self._pickup_date = value
     
     @classmethod
-    def create(cls, session, customer_id, service_id, weight, pickup_date, pickup_time, special_instructions=None, service_class_id=None):
-        from lib.models.service import Service
-        from lib.models.order_status_history import OrderStatusHistory
-        from lib.models.service_class import ServiceClass
-        
-        service = session.query(Service).filter_by(id=service_id).first()
-        if not service:
-            raise ValueError("Invalid service ID")
-        
-        price_per_unit = service.price_per_unit
-        
-        if service_class_id:
-            service_class = session.query(ServiceClass).filter_by(id=service_class_id).first()
-            if not service_class:
-                raise ValueError("Invalid service class ID")
-            price_per_unit *= service_class.price_multiplier
-        
-        total_price = price_per_unit * weight
-        
+    def create(cls, session, customer_id, service_id, weight, total_price, pickup_date, pickup_time, special_instructions):
+        print(f"Creating order for customer_id={customer_id}, service_id={service_id}, weight={weight}, total_price={total_price}")
         order = cls(
             customer_id=customer_id,
             service_id=service_id,
-            service_class_id=service_class_id,
             weight=weight,
             total_price=total_price,
             pickup_date=pickup_date,
             pickup_time=pickup_time,
             special_instructions=special_instructions,
-            status='placed'
+            status="picked"  # or your default status
         )
-        
         session.add(order)
-        session.flush()
-        
-        history_entry = OrderStatusHistory(
-            order_id=order.id,
-            status='placed',
-            timestamp=datetime.utcnow()
-        )
-        
-        session.add(history_entry)
-        session.commit()
+        try:
+            session.commit()
+            print(f"Order committed successfully with id={order.id}")
+        except Exception as e:
+            print(f"Error committing order: {e}")
+            session.rollback()
+            raise
         return order
     
     @classmethod

@@ -58,26 +58,36 @@ def register():
     print("\n===== User Registration =====")
     username = input("Enter username: ")
     password = input("Enter password: ")
-    # Remove role input, all users are admin
-    is_customer = False
-    is_manager = True
-    
+    role = input("Register as (1) Customer or (2) Manager? Enter 1 or 2: ").strip()
+    if role == "1":
+        is_customer = True
+        is_manager = False
+    elif role == "2":
+        is_customer = False
+        is_manager = True
+    else:
+        print("Invalid role selection.")
+        return
+
     from lib.db import get_session
     session = get_session()
-    
+
     if User.find_by_username(session, username):
         print("Username already exists. Please try again.")
         return
-    
+
     user = User.create(session, username, password, is_customer=is_customer, is_manager=is_manager)
-    
-    # For admin user, create a Customer record with example details
-    name = input("Enter your full name: ")
-    phone = input("Enter your phone number: ")
-    email = input("Enter your email (optional): ")
-    address = input("Enter your address (optional): ")
-    Customer.create(session, name, phone, email, address, user_id=user.id)
-    
+
+    if is_customer:
+        print("Please enter your customer details:")
+        name = input("Enter your full name: ")
+        phone = input("Enter your phone number: ")
+        email = input("Enter your email (optional): ")
+        address = input("Enter your address (optional): ")
+        Customer.create(session, name, phone, email, address, user_id=user.id)
+    else:
+        print("Manager registration complete.")
+
     print("Registration successful! You can now log in.")
 
 def login():
@@ -85,21 +95,30 @@ def login():
     print("\n===== User Login =====")
     username = input("Enter username: ")
     password = input("Enter password: ")
-    
+
     from lib.db import get_session
     session = get_session()
-    
+
     user = User.find_by_username(session, username)
     if not user or not user.check_password(password):
         print("Invalid username or password.")
         return
-    
-    # Force user to be admin for this simplified model
-    user.is_customer = False
-    user.is_manager = True
-    
+
+    # Load customer relationship explicitly
+    if user.is_customer:
+        customer = session.query(Customer).filter_by(user_id=user.id).first()
+    else:
+        customer = None
+
     current_user = user
-    print(f"Welcome, {user.username}!")
+    current_user.customer_obj = customer
+
+    if current_user.is_customer:
+        print(f"Welcome, customer {user.username}!")
+    elif current_user.is_manager:
+        print(f"Welcome, manager {user.username}!")
+    else:
+        print(f"Welcome, {user.username}!")
 
 def logout():
     global current_user
@@ -109,7 +128,7 @@ def logout():
 def main():
     # Create database tables if they don't exist
     create_tables()
-    
+
     while True:
         if current_user is None:
             print("\n===== Welcome to LaundryConnect =====")
@@ -126,7 +145,10 @@ def main():
             else:
                 print("Invalid choice. Please try again.")
         else:
-            main_menu_loop()
+            if current_user.is_customer:
+                customer_order_menu()
+            else:
+                main_menu_loop()
 
 def main_menu_loop():
     """Main application loop"""
@@ -190,7 +212,8 @@ def customer_order_menu():
 
 def place_order():
     from lib.db import get_session
-    from lib.models import Service, Order
+    from lib.models import Service, Order, Customer
+    from datetime import datetime
     session = get_session()
     
     print("\nAvailable Services:")
@@ -222,40 +245,61 @@ def place_order():
     approx_price = service.price_per_unit * weight
     print(f"Approximate price: {approx_price}")
     
-    pickup_date = input("Enter pickup date (YYYY-MM-DD): ")
+    pickup_date_str = input("Enter pickup date (YYYY-MM-DD): ")
+    try:
+        pickup_date = datetime.strptime(pickup_date_str, "%Y-%m-%d").date()
+    except ValueError:
+        print("Invalid date format. Please use YYYY-MM-DD.")
+        return
+
     pickup_time = input("Enter pickup time (morning/afternoon/evening): ")
     special_instructions = input("Any special instructions? (optional): ")
     
     try:
+        customer = session.query(Customer).filter_by(user_id=current_user.id).first()
+        if not customer:
+            print("Customer record not found.")
+            return
         order = Order.create(
             session=session,
-            customer_id=current_user.customer.id,
+            customer_id=customer.id,
             service_id=service_id,
             weight=weight,
+            total_price=approx_price,
             pickup_date=pickup_date,
             pickup_time=pickup_time,
             special_instructions=special_instructions
         )
         print(f"Order placed successfully! Order ID: {order.id}")
+        session.close()
     except Exception as e:
         print(f"Error placing order: {e}")
 
 def view_my_orders():
     from lib.db import get_session
-    from lib.models import Order
+    from lib.models import Order, Customer
     session = get_session()
     
-    orders = session.query(Order).filter_by(customer_id=current_user.customer.id).all()
-    if not orders:
-        print("You have no orders.")
-        return
-    
-    for order in orders:
-        print(f"Order ID: {order.id}, Service: {order.service.name}, Weight: {order.weight} kgs, Total Price: {order.total_price}, Status: {order.status}")
-        print("Status History:")
-        for status in order.status_history:
-            print(f" - {status.status} at {status.timestamp}")
-        print("-" * 40)
+    try:
+        customer = session.query(Customer).filter_by(user_id=current_user.id).first()
+        if not customer:
+            print("Customer record not found.")
+            return
+        orders = session.query(Order).filter_by(customer_id=customer.id).all()
+        if not orders:
+            print("You have no orders.")
+            input("Press Enter to continue...")
+            return
+        
+        for order in orders:
+            print(f"Order ID: {order.id}, Service: {order.service.name}, Weight: {order.weight} kgs, Total Price: {order.total_price}, Status: {order.status}")
+            print("Status History:")
+            for status in order.status_history:
+                print(f" - {status.status} at {status.timestamp}")
+            print("-" * 40)
+        input("Press Enter to continue...")
+    except Exception as e:
+        print(f"Error retrieving orders: {e}")
 
 
 def main_menu():
