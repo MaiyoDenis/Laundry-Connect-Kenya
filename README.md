@@ -14,6 +14,7 @@ LaundryConnect Kenya is a full-featured CLI application that digitizes laundry s
 - [GitHub Repository](https://github.com/yourusername/laundry-connect-kenya)
 - [Project Website / Live Demo](https://laundryconnect.co.ke)
 - [Author Profile](https://github.com/yourusername)
+- [Database Diagram](https://dbdiagram.io/d/68343b300240c65c4438de5f)
 
 ![LaundryConnect Logo](https://via.placeholder.com/800x200/5D5CDE/FFFFFF?text=LaundryConnect+Kenya)
 
